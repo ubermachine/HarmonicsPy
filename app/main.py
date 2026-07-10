@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 from nifty_scraper import get_nifty500_symbols
 from scanner import run_mass_scan
 from pyharmonics_handler import whats_forming_yahoo
-from data_manager_v2 import get_bulk_yahoo_data_v2
 
 logging.basicConfig(level=logging.INFO)
 
@@ -27,8 +26,7 @@ run_scan = st.button("🚀 Run Nifty 500 Scan", type="primary", use_container_wi
 if run_scan or resync_clicked:
     force_update = resync_clicked
     if force_update:
-        get_bulk_yahoo_data_v2.clear()
-        st.toast("Cache cleared — fetching delta only...")
+        st.toast("Fetching only new candles since last cache date...")
 
     with st.spinner("Fetching Nifty 500 symbol list from NSE..."):
         symbols = get_nifty500_symbols()
