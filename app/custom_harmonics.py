@@ -13,11 +13,14 @@ def get_extrema(df, order=5):
     Detect alternating swing highs (type=1) and lows (type=-1).
     Returns list of (bar_index, price, type) tuples in chronological order.
     """
-    highs = argrelextrema(df['High'].values, np.greater, order=order)[0]
-    lows  = argrelextrema(df['Low'].values,  np.less,    order=order)[0]
+    high_vals = df['High'].values
+    low_vals = df['Low'].values
+    highs = argrelextrema(high_vals, np.greater, order=order)[0]
+    lows  = argrelextrema(low_vals,  np.less,    order=order)[0]
 
-    raw = [(h, float(df['High'].iloc[h]),  1) for h in highs]
-    raw += [(l, float(df['Low'].iloc[l]),  -1) for l in lows]
+    # Performance optimization: use .values numpy array indexing instead of .iloc
+    raw = [(h, float(high_vals[h]),  1) for h in highs]
+    raw += [(l, float(low_vals[l]),  -1) for l in lows]
     raw.sort(key=lambda x: x[0])
 
     # Enforce strictly alternating H/L; always keep the more extreme one
@@ -39,8 +42,8 @@ def get_extrema(df, order=5):
 # Fibonacci helpers
 # ---------------------------------------------------------------------------
 
-def in_range(val, lo, hi):
-    return lo <= val <= hi
+# def in_range(val, lo, hi):
+#     return lo <= val <= hi
 
 
 # ---------------------------------------------------------------------------
@@ -112,20 +115,21 @@ def find_harmonic_patterns(df, extrema):
 
         matched = None
         for name, (ab_lo, ab_hi, bc_lo, bc_hi, cd_lo, cd_hi, ad_lo, ad_hi, cypher) in HARMONIC_RULES.items():
-            if not in_range(AB_XA, ab_lo, ab_hi):
+            # Performance optimization: inline range checks instead of in_range function
+            if not (ab_lo <= AB_XA <= ab_hi):
                 continue
-            if not in_range(BC_AB, bc_lo, bc_hi):
+            if not (bc_lo <= BC_AB <= bc_hi):
                 continue
-            if not in_range(CD_BC, cd_lo, cd_hi):
+            if not (cd_lo <= CD_BC <= cd_hi):
                 continue
 
             if cypher:
                 # Cypher: D validated against 0.786 retracement of XC
-                if in_range(DC_XC, 0.750, 0.820):
+                if 0.750 <= DC_XC <= 0.820:
                     matched = name
                     break
             else:
-                if in_range(AD_XA, ad_lo, ad_hi):
+                if ad_lo <= AD_XA <= ad_hi:
                     matched = name
                     break
 
@@ -159,6 +163,7 @@ def find_divergences(df, extrema):
     divergences = []
 
     macd_line = MACD(close=df['Close']).macd()
+    macd_vals = macd_line.values
 
     for i in range(len(extrema) - 2):
         A, B = extrema[i], extrema[i + 2]
@@ -166,8 +171,9 @@ def find_divergences(df, extrema):
         if A[2] != B[2]:
             continue
 
-        macd_A = macd_line.iloc[A[0]]
-        macd_B = macd_line.iloc[B[0]]
+        # Performance optimization: use .values numpy array indexing instead of .iloc
+        macd_A = macd_vals[A[0]]
+        macd_B = macd_vals[B[0]]
         if pd.isna(macd_A) or pd.isna(macd_B):
             continue
 
