@@ -37,8 +37,14 @@ def _yf_interval(interval: str) -> str:
 
 def _get_data_path(symbol: str, interval: str = "1d") -> str:
     """Resolves Parquet file path from local data lake or remote GitHub URL."""
-    symbol_sanitized = symbol.replace("^", "").replace(".", "_").lower()
-    filename = f"{symbol_sanitized}_{interval}.parquet"
+    symbol = symbol.upper().strip()
+    is_sector = symbol in [
+        "^NSEI", "^NSEBANK", "^CNXAUTO", "^CNXIT", "^CNXPHARMA", 
+        "^CNXMETAL", "^CNXENERGY", "^CNXFMCG", "^CNXMEDIA", "^CNXREALTY", 
+        "^CNXPSUBANK", "^CNXINFRA", "NIFTY_FIN_SERVICE.NS", 
+        "NIFTY_OIL_AND_GAS.NS", "^CNXCONSUM"
+    ]
+    filename = "SectorDailyBars.parquet" if is_sector else "DailyBars.parquet"
     
     # Check local paths first
     local_paths = [
@@ -61,26 +67,34 @@ def get_yahoo_data(symbol: str, interval: str, candles: int = 1000,
                    force_update: bool = False) -> CachedCandleData:
     """
     Loads OHLCV data for a single symbol from the central Parquet data lake.
-    Queries the file (local path or remote URL) directly via DuckDB.
+    Queries the file (local path or remote URL) and filters by Ticker.
     """
     data_path = _get_data_path(symbol, interval)
     
-    con = duckdb.connect()
     try:
-        # Load httpfs extension for remote URL support
         if data_path.startswith("http"):
-            con.execute("INSTALL httpfs; LOAD httpfs;")
-            
-        # DuckDB streams the candles directly from the Parquet file
-        query = f"""
-            SELECT * FROM (
-                SELECT * FROM '{data_path}'
-                ORDER BY 1 DESC
-                LIMIT {candles}
-            )
-            ORDER BY 1 ASC
-        """
-        df = con.execute(query).df()
+            # Use pandas read_parquet directly for remote files (prevents DuckDB httpfs segfaults on Streamlit Cloud)
+            df_all = pd.read_parquet(data_path)
+            df = df_all[df_all['Ticker'] == symbol][['Date', 'Open', 'High', 'Low', 'Close', 'Volume']].sort_values('Date').tail(candles).reset_index(drop=True)
+        else:
+            con = duckdb.connect()
+            try:
+                # DuckDB streams the candles directly from the Parquet file
+                query = f"""
+                    SELECT * FROM (
+                        SELECT Date, Open, High, Low, Close, Volume FROM read_parquet('{data_path}')
+                        WHERE Ticker = '{symbol}'
+                        ORDER BY Date DESC
+                        LIMIT {candles}
+                    )
+                    ORDER BY Date ASC
+                """
+                df = con.execute(query).df()
+            finally:
+                con.close()
+                
+        if df.empty:
+            raise ValueError(f"No data returned for symbol: {symbol} inside the file")
     except Exception as e:
         logging.warning(f"Failed to load '{symbol}' from data lake: {e}. Falling back to dynamic yfinance download...")
         try:
@@ -113,8 +127,6 @@ def get_yahoo_data(symbol: str, interval: str, candles: int = 1000,
             df = df[['Date', 'Open', 'High', 'Low', 'Close', 'Volume']]
         except Exception as yf_err:
             raise ValueError(f"Failed to load data for '{symbol}' from data lake AND yfinance: {yf_err}")
-    finally:
-        con.close()
 
     df.set_index(df.columns[0], inplace=True)
     df.index = pd.to_datetime(df.index)
