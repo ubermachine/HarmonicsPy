@@ -16,8 +16,11 @@ def get_extrema(df, order=5):
     highs = argrelextrema(df['High'].values, np.greater, order=order)[0]
     lows  = argrelextrema(df['Low'].values,  np.less,    order=order)[0]
 
-    raw = [(h, float(df['High'].iloc[h]),  1) for h in highs]
-    raw += [(l, float(df['Low'].iloc[l]),  -1) for l in lows]
+    # ⚡ Bolt Optimization: Using .values instead of .iloc for fast array access inside loops
+    high_vals = df['High'].values
+    low_vals  = df['Low'].values
+    raw = [(h, float(high_vals[h]),  1) for h in highs]
+    raw += [(l, float(low_vals[l]),  -1) for l in lows]
     raw.sort(key=lambda x: x[0])
 
     # Enforce strictly alternating H/L; always keep the more extreme one
@@ -159,6 +162,8 @@ def find_divergences(df, extrema):
     divergences = []
 
     macd_line = MACD(close=df['Close']).macd()
+    # ⚡ Bolt Optimization: Pre-extracting MACD values array to avoid expensive .iloc calls in the loop
+    macd_vals = macd_line.values
 
     for i in range(len(extrema) - 2):
         A, B = extrema[i], extrema[i + 2]
@@ -166,8 +171,8 @@ def find_divergences(df, extrema):
         if A[2] != B[2]:
             continue
 
-        macd_A = macd_line.iloc[A[0]]
-        macd_B = macd_line.iloc[B[0]]
+        macd_A = macd_vals[A[0]]
+        macd_B = macd_vals[B[0]]
         if pd.isna(macd_A) or pd.isna(macd_B):
             continue
 
