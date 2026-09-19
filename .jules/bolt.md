@@ -1,0 +1,3 @@
+## 2024-05-14 - Pre-extracting Pandas columns as NumPy arrays and removing helper functions in tight loops
+**Learning:** In PyHarmonics' scanner logic, frequent Pandas `.iloc` lookups inside loops (`get_extrema`, `find_divergences`) cause significant performance overhead. Furthermore, extracting simple mathematical range checks into separate helper functions (like `in_range`) adds unneeded function call overhead when executed thousands of times within the `find_harmonic_patterns` loop over `HARMONIC_RULES`.
+**Action:** Avoid using Pandas `.iloc` inside iterative loops or comprehensions. Always pre-extract columns into NumPy arrays using `.values` before the loop for fast index access. Prefer inline range checks over helper function calls in tight calculation loops.
