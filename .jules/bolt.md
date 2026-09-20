@@ -1,0 +1,3 @@
+## 2024-09-20 - Optimize Pandas Access and Conditionals
+**Learning:** Avoid using Pandas `.iloc` inside iterative loops, especially when scanning large datasets (e.g. extrema and divergences logic). Profiling shows it creates a huge bottleneck. Also, inline range checks (`lo <= val <= hi`) perform better than calling a wrapper function (`in_range`) inside tight loop calculations.
+**Action:** Always pre-extract Pandas columns into NumPy arrays using `.values` before iterating, allowing fast index access. When running simple range checks in heavily iterated logic, write the condition directly inline instead of abstracting it behind a helper function.
