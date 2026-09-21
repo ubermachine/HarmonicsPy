@@ -1,0 +1,3 @@
+## 2025-01-20 - Fast Pandas Indexing in Iterative Loops
+**Learning:** Found that using Pandas `.iloc` inside tight loops (like iterating over extrema indices in `custom_harmonics.py`) creates a significant performance bottleneck due to Pandas overhead on every access.
+**Action:** When accessing Pandas series/dataframes iteratively by position inside loops, pre-extract columns into NumPy arrays using `.values` before the loop, and use O(1) direct array indexing (e.g., `high_vals[h]`).
