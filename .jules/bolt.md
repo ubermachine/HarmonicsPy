@@ -1,0 +1,3 @@
+## 2024-09-27 - Pandas `.iloc` Anti-pattern inside iterative loops
+**Learning:** Using pandas `.iloc` lookup inside a loop (especially for time-series iteration over thousands of candles) adds massive overhead due to Pandas object creation and checks. Function calls for simple range checks in tight loops also add noticeable overhead in Python.
+**Action:** Always pre-extract Pandas DataFrame/Series columns to raw NumPy arrays (`df['Col'].values`) before entering an iterative loop, accessing elements via integer index. Replace simple helper functions like `in_range` with inline comparisons for tight nested loops.
