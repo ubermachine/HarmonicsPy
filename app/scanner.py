@@ -38,13 +38,15 @@ def run_mass_scan(symbols, interval, period="1y", force_update=False):
                     "Date":             p['date'],
                 })
 
+            close_vals = df['Close'].values
             for d in divergences:
                 b_bar = d['points'][1][0]
+                # Performance optimization: use .values numpy array indexing instead of .iloc
                 divergences_list.append({
                     "Symbol":           symbol,
                     "Type":             "Divergence",
                     "Pattern":          d['type'],
-                    "Completion Price": round(float(df['Close'].iloc[b_bar]), 2),
+                    "Completion Price": round(float(close_vals[b_bar]), 2),
                     "PRZ Low":          '-',
                     "PRZ High":         '-',
                     "Date":             d['date'],
